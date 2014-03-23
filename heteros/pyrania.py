@@ -9,10 +9,20 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 # implement the default mpl key bindings
 from matplotlib.backend_bases import key_press_handler
-from numpy import arange, sin, pi, histogram
+from numpy import arange, sin, pi, linalg
+from math import sqrt
+import numpy
 from pandas import read_csv
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+
+
+def rank(array):
+    tmp_array = numpy.array(array)
+    temp = tmp_array.argsort()
+    ranks = numpy.empty(len(tmp_array), int)
+    ranks[temp] = numpy.arange(len(tmp_array))
+    return ranks
 
 class Plotter:
     
@@ -50,17 +60,19 @@ class Plotter:
 
 class Window:
 
-    root = 1
-    left_frame =1
-    right_frame = 1
-    plotter = 1
+    root = {}
+    left_frame = {}
+    right_frame = {}
+    label_R2 = {}
+    plotter = {}
     depend_var = {}
     independ_var = {}
+    t_criteria = {}
 
     def __init__(self):
         self.root = tk.Tk()
         self.root.grid_columnconfigure(1, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
         self.root.resizable(True, True)
         menubar = tk.Menu(self.root)
@@ -73,7 +85,20 @@ class Window:
         self.right_frame = tk.Frame(self.root)
         self.right_frame.grid(row=0,column=1,sticky='nsew')
         self.left_frame.grid(row=0,column=0,sticky='nsew')
+# вторая привязка
+        self.listbox=tk.Listbox(self.left_frame,width=70,heigh=40,selectmode=tk.EXTENDED)
+        self.listbox.pack(side = tk.LEFT, fill = tk.BOTH)
+#        self.listbox.grid(sticky='nsew',row=1,column=0)
+        scrollbar = tk.Scrollbar(self.left_frame,orient=tk.HORIZONTAL)
+        scrollbar.pack(side = tk.TOP, fill=tk.X);
+#        scrollbar.grid(row=0,column=0)
+        self.listbox.config(xscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.listbox.xview)
+
         self.plotter = Plotter(tk_root = self.right_frame)
+
+        self.t_criteria = read_csv("t-crit.csv")['T']
+#        print(self.t_criteria)
 
 
     def plot(self):
@@ -99,14 +124,33 @@ class Window:
         self.calc_model()
 
     def calc_model(self):
-        model = LinearRegression().fit(self.independ_var,self.depend_var)
-        predicted = model.predict(self.independ_var)
-        r2 = r2_score(self.depend_var,predicted)
-        print(len(predicted),len(self.depend_var))
-        self.plotter.add_to_plot(arange(0,len(self.depend_var)),self.depend_var-predicted)
-        self.plotter.plot_hist(self.depend_var-predicted,(0,0.25,0.5,0.75,1,1.25,1.5,1.75,2,4))
-        print(r2)
-        pass
+        i = 0
+        for var in self.independ_var:
+#            xx = self.independ_var[var].reshape((self.independ_var[var].shape[0],-1))
+#            yy = self.depend_var.reshape((self.depend_var.shape[0],-1))
+#            model = LinearRegression().fit(xx,self.depend_var)
+#            predicted = model.predict(xx)
+            xx = numpy.vstack([self.independ_var[var],numpy.ones(len(self.depend_var))]).T
+            b = linalg.lstsq(xx,self.depend_var)[0]
+            predicted = self.independ_var[var]*b[0] + b[1]
+
+            errors = self.depend_var-predicted
+            self.plotter.add_to_plot(arange(0,len(self.depend_var)),errors)
+#            r2 = r2_score(self.depend_var,predicted)
+            #self.plotter.plot_hist(errors,arange(0,4,0.25))
+#            self.label_R2['text'] = "R2 value: " + str(r2)
+
+            err_rank = rank(errors)
+            n = len(self.independ_var[var])
+            sqrank_sum = sum((err_rank - rank(self.independ_var[var]))**2)
+            Rox = 1-6*(sqrank_sum/(n*((n**2)-1)))
+            t = (abs(Rox)*sqrt(n-2))/(sqrt(1-Rox**2))
+            self.listbox.insert(tk.END,"Расчетное значение t-критерия для независимой переменной "+str(i+1) + "равно: " + str(t))
+            if t > numpy.float64(self.t_criteria[n-2]):
+                self.listbox.insert(tk.END,"Расчетное значения критерия t = " + str(t) + ", что больше табличного для v=18 " + str(self.t_criteria[n-2]) + " Критерий вносит гетероскедастичных ошибок")
+            else:
+                self.listbox.insert(tk.END,"Расчетное значения критерия t = " + str(t) + ", что меньше табличного для v=18 " + str(self.t_criteria[n-2]) + " Критерий не вносит гетероскедастические ошибки")
+            i += 1
 
 
 
