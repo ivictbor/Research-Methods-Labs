@@ -2,16 +2,71 @@
 #modules depended:
 #   numpy matplotlib python-dateutil pyparsing six
 #
-#call format
-#  analysis.py data_file
-#
 
-import sys, re, math,numpy
+import sys, re, math, numpy
+import pandas
+import random
 
 prec = 3  # digits after dot for display
 
 # == read data from file
-dataFile = open(sys.argv[1])
+if len(sys.argv) == 1:
+    print("call format: mgua.py data_file")
+    sys.exit(-1)
+data = pandas.read_csv(sys.argv[1])
+
+W = list(range(0,len(data)-1)) #All indexes
+random.shuffle(W)
+l=W[:int(len(W)/2)]   #learning indexes
+C=W[int(len(W)/2)-1:]    #Control indexes
+
+def basic_function(a, xi, xj):
+    return a[0]+a[1]*xi+a[2]*xj+a[3]*xi*xj
+    
+#sum of lists productions (each with each)    
+def sump(l1,l2):
+    return sum(a * b for a, b in zip(l1, l2))   
+    
+#MLS regression of basic function     
+def basic_regr(y,x1,x2):
+    a = numpy.array([
+        [len(y),        sum(x1),        sum(x2),        sump(x1,x2)       ],
+        [sum(x1),       sum(x1**2),     sump(x1,x2),    sump(x1**2,x2)    ],
+        [sum(x2),       sump(x1,x2),    sum(x2**2),     sump(x1,x2**2)    ],
+        [sump(x1,x2),   sump(x1**2,x2), sump(x1,x2**2), sump(x1**2,x2**2) ]])
+        
+    b = numpy.array([sum(y),sump(x1,y), sump(x2,y), sum(a*b*c for a,b,c in zip(x1, x2, y)) ])
+    return numpy.linalg.solve(a, b)
+
+  
+
+#
+# generate tuples of all possible argument pairs
+#
+def gen_pairs(args_count):
+    pairs = []
+    for i in range(1, args_count+1):
+        for j in range(i + 1, args_count+1):
+            pairs.append(('x'+str(i),'x'+str(j) ))
+            pairs.append(('x'+str(j),'x'+str(i) ))
+    return pairs
+
+    
+print (data['y'].values)    
+SRC_ARG = 3
+for (x1, x2) in gen_pairs(SRC_ARG):
+    ka = basic_regr(data['y'], data[x1], data[x2])
+    print("Args", x1, " with ", x2)
+    summ = 0
+    for i in l:
+        print(i)
+        y,x1,x2 = data['y'].values[i], data[x1].values[i], data[x2].values[i]
+        summ +=((basic_function(ka, x1, x2)- y)*2) 
+    avg_sqerr = sum / len(l)  
+    print(avg_sqerr)    
+
+print(gen_pairs(3))
+sys.exit()
 data = []  #will be populated with data
 
 try:
