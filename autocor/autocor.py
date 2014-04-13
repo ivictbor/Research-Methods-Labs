@@ -86,16 +86,9 @@ class Window:
         self.right_frame = tk.Frame(self.root)
         self.right_frame.grid(row=0,column=1,sticky='nsew')
         self.left_frame.grid(row=0,column=0,sticky='nsew')
-       # self.listbox=tk.Listbox(self.left_frame,width=70,heigh=40,selectmode=tk.EXTENDED)
-       # self.listbox.pack(side = tk.LEFT, fill = tk.BOTH)
-       # scrollbar = tk.Scrollbar(self.left_frame,orient=tk.HORIZONTAL)
-       # scrollbar.pack(side = tk.TOP, fill=tk.X);
-       # self.listbox.config(xscrollcommand=scrollbar.set)
-       # scrollbar.config(command=self.listbox.xview)
 
         self.plotter = Plotter(tk_root = self.right_frame)
 
-#        self.DW_criteria = read_csv("DW-crit.csv")
 
 
     def plot(self):
@@ -134,14 +127,13 @@ class Window:
 #        print(errors_mul)
         DW = sum(errors_sub**2)/sum(errors**2)
         print("Расчетное значение критерия Дарбина-Уотсона равно: " ,DW)
-        print("Расчетное значение критерия Дарбина-Уотсона равно: " + str(DW))
         
         n=len(errors);   
         DW1 = 1.10;
         DW2 = 1.54;
 
-        if DW > DW1:
-            print("Расчетное значение больше табличного для нижней границы. Присутствует положительная автокореляция")
+        if DW < DW1:
+            print("Расчетное значение меньше табличного для нижней границы. Присутствует положительная автокореляция")
         elif DW1 < DW and DW <DW2:
             print("Расчетное значение между границ. Присутствие автокореляции не пределено")
         elif DW2 < DW and DW <(4-DW2):
@@ -162,7 +154,7 @@ class Window:
             print("r0=",r0," Автокореляцией нельзя пренебречь")
         corr = []
         values = self.dataset.values
-        print(self.dataset)
+#        print(self.dataset)
         corr.extend([self.dataset.corr()])
         cp=self.dataset.copy()
         for i in range(0,n-3):
@@ -174,10 +166,10 @@ class Window:
         for a in corr:
             i=0
             for c in a.values[0,1:]:
-                print(c)
+#                print(c)
                 corrk[i].extend([c])
                 i+=1
-        print(corrk)
+#        print(corrk)
         for a in corrk:
             if len(corrk[a]) > 0:
                 self.plotter.add_to_plot(numpy.arange(len(corrk[a])),corrk[a],"Faktor "+str(a))
